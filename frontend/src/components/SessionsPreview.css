@@ -1,0 +1,123 @@
+.preview-container {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.preview-count {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.overlap-warning {
+  color: var(--overlap);
+  font-weight: 600;
+}
+
+.preview-day {
+  margin-bottom: 24px;
+}
+
+.preview-day-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.preview-session {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  transition: opacity 0.15s;
+}
+
+.preview-session.overlap {
+  background: var(--overlap-light);
+  border-color: var(--overlap);
+}
+
+.preview-session.deselected {
+  opacity: 0.45;
+}
+
+.session-checkbox {
+  margin-top: 3px;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.session-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-width: 220px;
+}
+
+.type-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.session-display {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.session-time-preview {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.overlap-cell {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--overlap);
+}
+
+.session-editable {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.inline-edit {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  min-width: 0;
+}
+
+.inline-edit:focus {
+  border-color: var(--accent);
+}
