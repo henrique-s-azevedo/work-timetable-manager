@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { useGoogleLogin } from '@react-oauth/google'
 import api from '../api'
 
 const AuthContext = createContext(null)
@@ -32,14 +31,19 @@ export function AuthProvider({ children }) {
     })
   }, [credential, logout])
 
-  const loginSuccess = useCallback(async (idToken, accessToken) => {
-    localStorage.setItem('id_token', idToken)
+  const loginSuccess = useCallback(async (accessToken, userInfo) => {
+    localStorage.setItem('id_token', accessToken)
     localStorage.setItem('access_token', accessToken)
-    setCredential(idToken)
+    setCredential(accessToken)
 
     try {
-      const res = await api.post('/api/auth/login', { accessToken }, {
-        headers: { Authorization: `Bearer ${idToken}` }
+      const res = await api.post('/api/auth/login', {
+        accessToken,
+        name: userInfo.name,
+        email: userInfo.email,
+        picture: userInfo.picture,
+      }, {
+        headers: { Authorization: `Bearer ${accessToken}` }
       })
       setUser(res.data)
     } catch (err) {

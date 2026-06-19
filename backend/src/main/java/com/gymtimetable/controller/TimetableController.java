@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -35,9 +34,9 @@ public class TimetableController {
     public ResponseEntity<List<ParsedSessionDTO>> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam("weekStart") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart,
-            @AuthenticationPrincipal Jwt jwt) throws Exception {
+            @AuthenticationPrincipal String googleId) throws Exception {
 
-        Instructor instructor = getInstructor(jwt);
+        Instructor instructor = getInstructor(googleId);
         if (instructor.getInitials() == null || instructor.getInitials().isBlank()) {
             return ResponseEntity.badRequest().build();
         }
@@ -50,9 +49,9 @@ public class TimetableController {
     @Transactional
     public ResponseEntity<Map<String, Object>> export(
             @RequestBody Map<String, Object> body,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal String googleId) {
 
-        Instructor instructor = getInstructor(jwt);
+        Instructor instructor = getInstructor(googleId);
         LocalDate weekStart = LocalDate.parse((String) body.get("weekStart"));
 
         @SuppressWarnings("unchecked")
@@ -97,9 +96,9 @@ public class TimetableController {
     @GetMapping("/sessions")
     public ResponseEntity<List<Map<String, Object>>> getSessions(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal String googleId) {
 
-        Instructor instructor = getInstructor(jwt);
+        Instructor instructor = getInstructor(googleId);
         List<TimetableSession> sessions = sessionRepository
             .findByInstructorAndWeekStartDateOrderBySessionDateAscStartTimeAsc(instructor, weekStart);
 
@@ -111,9 +110,9 @@ public class TimetableController {
     public ResponseEntity<Map<String, Object>> updateSession(
             @PathVariable Long id,
             @RequestBody Map<String, String> body,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal String googleId) {
 
-        Instructor instructor = getInstructor(jwt);
+        Instructor instructor = getInstructor(googleId);
         TimetableSession session = sessionRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Session not found"));
 
@@ -125,7 +124,6 @@ public class TimetableController {
         if (body.containsKey("notes")) session.setNotes(body.get("notes"));
         sessionRepository.save(session);
 
-        // Update Google Calendar event if exported
         if (session.isExportedToCalendar() && session.getGoogleEventId() != null) {
             try {
                 ParsedSessionDTO dto = sessionToDto(session);
@@ -142,9 +140,9 @@ public class TimetableController {
     @Transactional
     public ResponseEntity<Void> deleteSession(
             @PathVariable Long id,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal String googleId) {
 
-        Instructor instructor = getInstructor(jwt);
+        Instructor instructor = getInstructor(googleId);
         TimetableSession session = sessionRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Session not found"));
 
@@ -168,9 +166,9 @@ public class TimetableController {
     @Transactional
     public ResponseEntity<Map<String, Object>> deleteWeek(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal String googleId) {
 
-        Instructor instructor = getInstructor(jwt);
+        Instructor instructor = getInstructor(googleId);
         List<TimetableSession> sessions = sessionRepository
             .findByInstructorAndWeekStartDate(instructor, weekStart);
 
@@ -196,8 +194,7 @@ public class TimetableController {
         return ResponseEntity.ok(result);
     }
 
-    private Instructor getInstructor(Jwt jwt) {
-        String googleId = jwt.getSubject();
+    private Instructor getInstructor(String googleId) {
         return instructorRepository.findByGoogleId(googleId)
             .orElseThrow(() -> new RuntimeException("Instructor not found. Please login first."));
     }

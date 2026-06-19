@@ -16,17 +16,11 @@ export default function Login() {
     flow: 'implicit',
     scope: 'openid email profile https://www.googleapis.com/auth/calendar',
     onSuccess: async (tokenResponse) => {
-      // Get ID token from userinfo endpoint
       const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
       })
       const userInfo = await userInfoRes.json()
-
-      // For resource server we need the ID token — use access_token as credential for now
-      // and pass access_token for calendar storage
-      // Note: with implicit flow we get access_token; id_token may be in tokenResponse
-      const idToken = tokenResponse.id_token || tokenResponse.access_token
-      await loginSuccess(idToken, tokenResponse.access_token)
+      await loginSuccess(tokenResponse.access_token, userInfo)
       navigate('/dashboard', { replace: true })
     },
     onError: (err) => console.error('Google login error:', err),
