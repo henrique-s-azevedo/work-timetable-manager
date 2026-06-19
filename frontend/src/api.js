@@ -18,7 +18,7 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem('id_token')
       localStorage.removeItem('access_token')
-      window.location.href = '/work-timetable-manager/login'
+      window.location.href = '/#/login'
     }
     return Promise.reject(err)
   }
