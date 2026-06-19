@@ -7,12 +7,18 @@ import Toast from './Toast'
 import './UploadPanel.css'
 
 function toMonday(dateStr) {
-  const [year, week] = dateStr.split('-W').map(Number)
-  const jan4 = new Date(year, 0, 4)
-  const dayOfWeek = jan4.getDay() || 7
-  const weekStart = new Date(jan4)
-  weekStart.setDate(jan4.getDate() - (dayOfWeek - 1) + (week - 1) * 7)
-  return weekStart
+  const d = new Date(dateStr + 'T00:00:00')
+  const day = d.getDay() || 7
+  d.setDate(d.getDate() - (day - 1))
+  return d
+}
+
+function formatWeekLabel(monday) {
+  if (!monday) return ''
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const fmt = (d) => d.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })
+  return `Semana de ${fmt(monday)} a ${fmt(sunday)}`
 }
 
 function toISODate(d) {
@@ -53,6 +59,7 @@ export default function UploadPanel() {
     const val = e.target.value
     setWeekValue(val)
     if (val) setWeekStart(toMonday(val))
+    else setWeekStart(null)
   }
 
   const handleParse = async () => {
@@ -174,13 +181,16 @@ export default function UploadPanel() {
           </div>
 
           <div className="form-group">
-            <label>Semana</label>
+            <label>Semana (escolhe qualquer dia da semana)</label>
             <input
-              type="week"
+              type="date"
               value={weekValue}
               onChange={handleWeekChange}
               className="week-input"
             />
+            {weekStart && (
+              <p className="form-hint">{formatWeekLabel(weekStart)}</p>
+            )}
           </div>
 
           <div className="form-group">

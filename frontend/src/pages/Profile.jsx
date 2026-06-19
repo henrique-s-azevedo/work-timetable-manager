@@ -10,7 +10,9 @@ export default function Profile() {
   const navigate = useNavigate()
   const [name, setName] = useState(user?.name || '')
   const [initials, setInitials] = useState(user?.initials || '')
+  const [editingInitials, setEditingInitials] = useState(!user?.initials)
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [toast, setToast] = useState(null)
 
   const showToast = (msg, type = 'success') => {
@@ -21,13 +23,15 @@ export default function Profile() {
   const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
+    setSaved(false)
     try {
-      // Update name
       await api.patch('/api/auth/profile', { name })
-      // Update initials separately
       await api.patch('/api/auth/initials', { initials })
       updateUser({ name, initials })
+      setEditingInitials(false)
+      setSaved(true)
       showToast('Perfil atualizado com sucesso.')
+      setTimeout(() => setSaved(false), 3000)
     } catch (err) {
       showToast('Erro ao guardar o perfil.', 'error')
     } finally {
@@ -72,13 +76,27 @@ export default function Profile() {
 
             <div className="form-group">
               <label>Iniciais do horário</label>
-              <input
-                type="text"
-                value={initials}
-                onChange={e => setInitials(e.target.value.toUpperCase())}
-                placeholder="Ex: HA"
-                maxLength={5}
-              />
+              {editingInitials ? (
+                <input
+                  type="text"
+                  value={initials}
+                  onChange={e => setInitials(e.target.value.toUpperCase())}
+                  placeholder="Ex: HA"
+                  maxLength={5}
+                  autoFocus
+                />
+              ) : (
+                <div className="initials-display">
+                  <span className="initials-badge">{initials}</span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setEditingInitials(true)}
+                  >
+                    Editar
+                  </button>
+                </div>
+              )}
               <p className="form-hint">Estas iniciais são usadas para identificar as tuas sessões no Excel.</p>
             </div>
 
@@ -95,7 +113,7 @@ export default function Profile() {
 
             <div className="profile-actions">
               <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'A guardar...' : 'Guardar alterações'}
+                {saving ? 'A guardar...' : saved ? 'Guardado!' : 'Guardar alterações'}
               </button>
               <button type="button" className="btn btn-secondary" onClick={logout}>
                 Logout
