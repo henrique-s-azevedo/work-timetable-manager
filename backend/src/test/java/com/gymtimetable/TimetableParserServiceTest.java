@@ -71,7 +71,7 @@ class TimetableParserServiceTest {
     @Test
     void dayBlocksHaveCorrectColumnRanges() {
         int[][] blocks = TimetableParserService.getDayBlocks();
-        assertThat(blocks).hasSize(7);
+        assertThat(blocks.length).isEqualTo(7);
         // Mon: F(5) to AX(49)
         assertThat(blocks[0]).containsExactly(0, 5, 49);
         // Tue: AY(50) to CP(93)
