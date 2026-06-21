@@ -41,8 +41,15 @@ public class TimetableController {
             return ResponseEntity.badRequest().build();
         }
 
-        List<ParsedSessionDTO> parsed = parserService.parse(file.getInputStream(), weekStart, instructor.getInitials());
-        return ResponseEntity.ok(parsed);
+        try {
+            List<ParsedSessionDTO> parsed = parserService.parse(file.getInputStream(), weekStart, instructor.getInitials());
+            return ResponseEntity.ok(parsed);
+        } catch (IllegalArgumentException e) {
+            if ("USER_NOT_IN_TT".equals(e.getMessage())) {
+                return ResponseEntity.unprocessableEntity().<List<ParsedSessionDTO>>build();
+            }
+            throw e;
+        }
     }
 
     @PostMapping("/export")
@@ -74,6 +81,7 @@ public class TimetableController {
                     .sessionType(SessionType.valueOf(dto.getSessionType()))
                     .sessionTypeAbbrev(dto.getSessionTypeAbbrev())
                     .className(dto.getClassName())
+                    .location(dto.getLocation())
                     .notes(dto.getNotes())
                     .googleEventId(googleEventId)
                     .exportedToCalendar(true)
@@ -121,6 +129,7 @@ public class TimetableController {
         }
 
         if (body.containsKey("className")) session.setClassName(body.get("className"));
+        if (body.containsKey("location")) session.setLocation(body.get("location"));
         if (body.containsKey("notes")) session.setNotes(body.get("notes"));
         sessionRepository.save(session);
 
@@ -209,6 +218,7 @@ public class TimetableController {
         map.put("sessionTypeAbbrev", s.getSessionTypeAbbrev());
         map.put("displayName", TimetableParserService.getAbbrevToDisplay().getOrDefault(s.getSessionTypeAbbrev(), s.getSessionTypeAbbrev()));
         map.put("className", s.getClassName());
+        map.put("location", s.getLocation());
         map.put("notes", s.getNotes());
         map.put("googleEventId", s.getGoogleEventId());
         map.put("exportedToCalendar", s.isExportedToCalendar());
@@ -226,6 +236,7 @@ public class TimetableController {
             .sessionTypeAbbrev(s.getSessionTypeAbbrev())
             .displayName(TimetableParserService.getAbbrevToDisplay().getOrDefault(s.getSessionTypeAbbrev(), s.getSessionTypeAbbrev()))
             .className(s.getClassName())
+            .location(s.getLocation())
             .notes(s.getNotes())
             .googleCalendarColorId(TimetableParserService.getAbbrevToColor().getOrDefault(s.getSessionTypeAbbrev(), 1))
             .build();
@@ -240,6 +251,7 @@ public class TimetableController {
             .sessionTypeAbbrev((String) m.get("sessionTypeAbbrev"))
             .displayName((String) m.get("displayName"))
             .className((String) m.getOrDefault("className", null))
+            .location((String) m.getOrDefault("location", null))
             .notes((String) m.getOrDefault("notes", null))
             .googleCalendarColorId((Integer) m.getOrDefault("googleCalendarColorId", 1))
             .overlapping(Boolean.TRUE.equals(m.get("overlapping")))

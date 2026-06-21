@@ -43,6 +43,8 @@ public class TimetableSession {
 
     private String className;
 
+    private String location;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 

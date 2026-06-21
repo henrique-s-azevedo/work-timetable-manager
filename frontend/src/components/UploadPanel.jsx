@@ -22,7 +22,7 @@ function formatWeekLabel(monday) {
 }
 
 function toISODate(d) {
-  return d.toISOString().split('T')[0]
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export default function UploadPanel() {
@@ -70,13 +70,13 @@ export default function UploadPanel() {
     formData.append('weekStart', toISODate(weekStart))
     try {
       const res = await api.post('/api/timetable/upload', formData)
-      if (res.data.length === 0) {
-        showToast(`Nenhuma sessão encontrada para as iniciais "${initials}".`, 'error')
-      } else {
-        setParsedSessions(res.data.map(s => ({ ...s, selected: true })))
-      }
+      setParsedSessions(res.data.map(s => ({ ...s, selected: true })))
     } catch (err) {
-      showToast('Erro ao processar o ficheiro.', 'error')
+      if (err.response?.status === 422) {
+        showToast('Não é possível executar, user não presente no TT.', 'error')
+      } else {
+        showToast('Erro ao processar o ficheiro.', 'error')
+      }
     } finally {
       setParsing(false)
     }

@@ -110,6 +110,9 @@ export default function SessionsPreview({ sessions: initialSessions, weekStart, 
                           {s.sessionTypeAbbrev}
                         </span>
                         <span className="session-display">{s.displayName}</span>
+                        {s.location && (
+                          <span className="session-location-badge">{s.location}</span>
+                        )}
                         <span className="session-time-preview">
                           {s.startTime.slice(0,5)} – {s.endTime.slice(0,5)}
                         </span>

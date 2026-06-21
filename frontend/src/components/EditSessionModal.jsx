@@ -74,6 +74,15 @@ export default function EditSessionModal({ session, onSave, onDelete, onClose })
         </p>
 
         <form onSubmit={handleSave}>
+          {session.location && (
+            <div className="form-group">
+              <label>Local</label>
+              <p style={{ fontSize: 13, color: 'var(--text)', margin: 0, padding: '6px 0' }}>
+                {session.location}
+              </p>
+            </div>
+          )}
+
           <div className="form-group">
             <label>Nome da aula / Título</label>
             <input

@@ -93,6 +93,15 @@
   white-space: nowrap;
 }
 
+.session-location-badge {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
 .overlap-cell {
   font-size: 13px;
   font-weight: 600;

@@ -33,7 +33,7 @@ function addDays(d, n) {
 }
 
 function toISODate(d) {
-  return d.toISOString().split('T')[0]
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export default function WeeklyCalendar({ sessions, weekStart, weekEnd, onSessionClick }) {
@@ -119,6 +119,7 @@ export default function WeeklyCalendar({ sessions, weekStart, weekEnd, onSession
                       <>
                         <span className="session-type">{s.sessionTypeAbbrev}</span>
                         {s.className && <span className="session-class">{s.className}</span>}
+                        {s.location && <span className="session-location">{s.location}</span>}
                         <span className="session-time">{s.startTime.slice(0,5)}–{s.endTime.slice(0,5)}</span>
                       </>
                     )}

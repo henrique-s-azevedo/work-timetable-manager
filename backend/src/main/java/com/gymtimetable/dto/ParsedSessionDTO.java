@@ -18,6 +18,7 @@ public class ParsedSessionDTO {
     private String sessionTypeAbbrev;
     private String displayName;
     private String className;
+    private String location;
     private String notes;
     private int googleCalendarColorId;
     private boolean overlapping;

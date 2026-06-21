@@ -139,6 +139,14 @@
   opacity: 0.85;
 }
 
+.session-location {
+  font-size: 9px;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .session-time {
   font-size: 9px;
   opacity: 0.7;
