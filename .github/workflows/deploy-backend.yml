@@ -12,5 +12,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Railway deploy hook
-        run: curl -X POST "${{ secrets.RAILWAY_DEPLOY_HOOK }}"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Railway
+        run: npx @railway/cli@latest up --service work-timetable-manager
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
