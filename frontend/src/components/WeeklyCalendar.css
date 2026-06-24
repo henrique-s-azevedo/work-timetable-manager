@@ -4,7 +4,7 @@
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border);
   overflow: hidden;
-  min-width: 700px;
+  min-width: 600px;
 }
 
 /* Header */
@@ -102,11 +102,9 @@
   border-top: 1px solid var(--border);
 }
 
-/* Session blocks */
+/* Session blocks — left/width set inline by layoutDaySessions */
 .session-block {
   position: absolute;
-  left: 2px;
-  right: 2px;
   border-radius: 4px;
   padding: 2px 4px;
   cursor: pointer;
@@ -121,6 +119,15 @@
 .session-block:hover {
   filter: brightness(0.92);
   z-index: 2;
+}
+
+.session-block.deselected {
+  opacity: 0.4;
+}
+
+/* Overlapping sessions get an amber border (set inline) — no merge, just a visual hint */
+.session-block.overlap {
+  border-style: solid;
 }
 
 .session-type {
@@ -150,13 +157,4 @@
 .session-time {
   font-size: 9px;
   opacity: 0.7;
-}
-
-.session-block.overlap {
-  border: 1.5px dashed var(--overlap);
-}
-
-.overlap-badge {
-  font-size: 10px;
-  font-weight: 600;
 }

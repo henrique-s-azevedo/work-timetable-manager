@@ -1,9 +1,10 @@
 import './WeeklyCalendar.css'
 
-const TIME_START = 6 * 60  // 06:00 in minutes
-const TIME_END   = 22 * 60 + 15  // 22:15
-const SLOT_MIN   = 15
-const TOTAL_SLOTS = (TIME_END - TIME_START) / SLOT_MIN  // 65 slots → 22:15 is the end boundary
+const TIME_START  = 6 * 60
+const TIME_END    = 22 * 60 + 15
+const SLOT_MIN    = 15
+const SLOT_HEIGHT = 24
+const TOTAL_SLOTS = (TIME_END - TIME_START) / SLOT_MIN
 
 const SESSION_COLORS = {
   IT: '#EF4444', SP: '#EF4444',
@@ -36,30 +37,71 @@ function toISODate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export default function WeeklyCalendar({ sessions, weekStart, weekEnd, onSessionClick }) {
+// Assigns _col and _totalCols to each session so overlapping ones render side-by-side
+function layoutDaySessions(sessions) {
+  if (!sessions.length) return []
+
+  const sorted = [...sessions]
+    .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
+    .map(s => ({ ...s }))
+
+  // Greedy column packing: place each session in the first column where it fits
+  const colEndTimes = []
+  for (const s of sorted) {
+    const start = timeToMinutes(s.startTime)
+    let col = colEndTimes.findIndex(t => t <= start)
+    if (col === -1) { col = colEndTimes.length; colEndTimes.push(timeToMinutes(s.endTime)) }
+    else colEndTimes[col] = timeToMinutes(s.endTime)
+    s._col = col
+  }
+
+  // BFS to find transitive overlap clusters; all sessions in a cluster share _totalCols
+  const visited = new Set()
+  for (let i = 0; i < sorted.length; i++) {
+    if (visited.has(i)) continue
+    const cluster = new Set([i])
+    const queue = [i]
+    while (queue.length) {
+      const cur = queue.shift()
+      for (let j = 0; j < sorted.length; j++) {
+        if (!cluster.has(j) &&
+            timeToMinutes(sorted[cur].startTime) < timeToMinutes(sorted[j].endTime) &&
+            timeToMinutes(sorted[j].startTime) < timeToMinutes(sorted[cur].endTime)) {
+          cluster.add(j)
+          queue.push(j)
+        }
+      }
+    }
+    const totalCols = Math.max(...[...cluster].map(ci => sorted[ci]._col)) + 1
+    cluster.forEach(ci => { sorted[ci]._totalCols = totalCols; visited.add(ci) })
+  }
+
+  return sorted
+}
+
+export default function WeeklyCalendar({ sessions, weekStart, onSessionClick }) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
 
-  // Group sessions by day
   const byDay = {}
   days.forEach(d => { byDay[toISODate(d)] = [] })
   sessions.forEach(s => {
-    const key = s.sessionDate
-    if (byDay[key] !== undefined) byDay[key].push(s)
+    if (byDay[s.sessionDate] !== undefined) byDay[s.sessionDate].push(s)
   })
 
-  // Generate time labels at each hour
   const timeLabels = []
   for (let slot = 0; slot <= TOTAL_SLOTS; slot++) {
     const totalMin = TIME_START + slot * SLOT_MIN
     const h = Math.floor(totalMin / 60)
     const m = totalMin % 60
-    const label = m === 0 ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}` : ''
-    timeLabels.push({ slot, label, isHour: m === 0 })
+    timeLabels.push({
+      slot,
+      label: m === 0 ? `${String(h).padStart(2,'0')}:00` : '',
+      isHour: m === 0,
+    })
   }
 
   return (
     <div className="weekly-calendar">
-      {/* Day header row */}
       <div className="cal-header">
         <div className="time-gutter" />
         {days.map((d, i) => (
@@ -70,9 +112,7 @@ export default function WeeklyCalendar({ sessions, weekStart, weekEnd, onSession
         ))}
       </div>
 
-      {/* Grid */}
       <div className="cal-grid-wrap">
-        {/* Time column */}
         <div className="time-col">
           {timeLabels.map(({ slot, label, isHour }) => (
             <div key={slot} className={`time-slot ${isHour ? 'hour' : ''}`}>
@@ -81,48 +121,50 @@ export default function WeeklyCalendar({ sessions, weekStart, weekEnd, onSession
           ))}
         </div>
 
-        {/* Day columns */}
         {days.map((d, di) => {
           const key = toISODate(d)
-          const daySessions = byDay[key] || []
+          const laid = layoutDaySessions(byDay[key] || [])
+
           return (
             <div key={di} className="day-col">
-              {/* Grid lines */}
               {timeLabels.map(({ slot, isHour }) => (
                 <div key={slot} className={`grid-line ${isHour ? 'hour' : ''}`} />
               ))}
-              {/* Session blocks */}
-              {daySessions.map((s, si) => {
-                const startSlot = slotIndex(s.startTime)
-                const endSlot = slotIndex(s.endTime)
-                const height = (endSlot - startSlot) * 24 // 24px per slot
-                const top = startSlot * 24
-                const color = SESSION_COLORS[s.sessionTypeAbbrev] || '#4F6EF7'
-                const isOverlap = s.overlapping
+
+              {laid.map((s, si) => {
+                const startSlot  = slotIndex(s.startTime)
+                const endSlot    = slotIndex(s.endTime)
+                const height     = (endSlot - startSlot) * SLOT_HEIGHT
+                const top        = startSlot * SLOT_HEIGHT
+                const totalCols  = s._totalCols || 1
+                const col        = s._col || 0
+                const GAP        = 2
+                const color      = SESSION_COLORS[s.sessionTypeAbbrev] || '#4F6EF7'
+                const isOverlap  = s.overlapping
+                const isDeselected = s.selected === false
+                const borderColor = isDeselected ? 'var(--border)'
+                                  : isOverlap    ? 'var(--warning)'
+                                  :                color
 
                 return (
                   <div
                     key={si}
-                    className={`session-block ${isOverlap ? 'overlap' : ''}`}
+                    className={`session-block${isOverlap ? ' overlap' : ''}${isDeselected ? ' deselected' : ''}`}
                     style={{
-                      top: `${top}px`,
-                      height: `${height}px`,
-                      background: isOverlap ? 'var(--overlap-light)' : `${color}22`,
-                      borderLeft: `3px solid ${isOverlap ? 'var(--overlap)' : color}`,
-                      color: isOverlap ? 'var(--overlap)' : color,
+                      top:        `${top}px`,
+                      height:     `${height}px`,
+                      left:       `calc(${(col / totalCols) * 100}% + ${GAP}px)`,
+                      width:      `calc(${(1 / totalCols) * 100}% - ${GAP * 2}px)`,
+                      background: isDeselected ? 'var(--bg)' : `${color}22`,
+                      borderLeft: `3px solid ${borderColor}`,
+                      color:      isDeselected ? 'var(--text-muted)' : isOverlap ? '#92400E' : color,
                     }}
                     onClick={() => onSessionClick && onSessionClick(s)}
                   >
-                    {isOverlap ? (
-                      <span className="overlap-badge">⚠️ Sobreposição</span>
-                    ) : (
-                      <>
-                        <span className="session-type">{s.sessionTypeAbbrev}</span>
-                        {s.className && <span className="session-class">{s.className}</span>}
-                        {s.location && <span className="session-location">{s.location}</span>}
-                        <span className="session-time">{s.startTime.slice(0,5)}–{s.endTime.slice(0,5)}</span>
-                      </>
-                    )}
+                    <span className="session-type">{s.sessionTypeAbbrev}</span>
+                    {s.className && <span className="session-class">{s.className}</span>}
+                    {s.location  && <span className="session-location">{s.location}</span>}
+                    <span className="session-time">{s.startTime.slice(0,5)}–{s.endTime.slice(0,5)}</span>
                   </div>
                 )
               })}
