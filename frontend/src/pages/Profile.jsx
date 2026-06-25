@@ -1,3 +1,27 @@
+/**
+ * Profile page component.
+ *
+ * Responsibilities:
+ * - Displays the instructor's current profile data (photo, name, email).
+ * - Allows editing the display name and the timetable initials.
+ * - Persists changes via PATCH /api/auth/profile and PATCH /api/auth/initials,
+ *   then updates the AuthContext user object optimistically via updateUser().
+ * - Provides a logout button that calls logout() from AuthContext.
+ *
+ * State management:
+ * - name, initials: controlled inputs initialized from the AuthContext user.
+ * - editingInitials: toggles between a read-only badge and an editable input.
+ *   Starts in edit mode if the user has no initials yet (first-time setup).
+ * - saving/saved: provide feedback during the async save operation.
+ *
+ * API interactions:
+ * - PATCH /api/auth/profile — updates the display name.
+ * - PATCH /api/auth/initials — updates the timetable initials (uppercase-trimmed).
+ *
+ * UX notes:
+ * - The Google e-mail field is read-only; changing accounts requires a logout.
+ * - A warning hint below the initials field explains why they matter for uploads.
+ */
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'

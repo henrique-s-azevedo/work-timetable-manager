@@ -1,3 +1,38 @@
+/**
+ * UploadPanel component — three-step timetable upload flow.
+ *
+ * Step 1 — Upload:
+ *   Presents a drag-and-drop zone for .xlsx files, a date picker for the week start,
+ *   and a text field for the instructor's initials. Submits a multipart POST to
+ *   /api/timetable/upload with the file, weekStart date, and initials baked into
+ *   the form data. On 422, shows a specific error ("user not in timetable").
+ *
+ * Step 2 — Preview:
+ *   Renders SessionsPreview with the parsed sessions returned by the backend.
+ *   The instructor can review, deselect, and edit sessions before export.
+ *   SessionsPreview calls back to handleExport() with the final selection.
+ *
+ * Step 3 — Done:
+ *   Shows a success screen with the count of exported events and a button to
+ *   navigate to the dashboard.
+ *
+ * State:
+ * - file: the selected .xlsx File object.
+ * - weekValue / weekStart: the raw date input value and the computed Monday Date.
+ * - initials: pre-filled from the AuthContext user; editable inline.
+ * - parsing: loading flag for the upload API call.
+ * - parsedSessions: null in step 1, array in step 2.
+ * - exportedCount: null in steps 1–2, number in step 3.
+ *
+ * API interactions:
+ * - POST /api/timetable/upload (multipart) — parse the timetable; returns ParsedSessionDTO[].
+ * - POST /api/timetable/export (JSON) — export selected sessions to Google Calendar.
+ *
+ * UX decisions:
+ * - A warning banner is shown if the user has no initials configured, with a link to /profile.
+ * - The week input uses type="date" (not type="week") so the instructor picks the specific
+ *   Monday date; weekStart is always normalized to Monday via toMonday().
+ */
 import { useState, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'

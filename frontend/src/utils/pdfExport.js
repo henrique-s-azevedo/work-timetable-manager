@@ -1,12 +1,41 @@
+/**
+ * PDF export utility for the weekly timetable schedule.
+ *
+ * Uses jsPDF for document creation and jspdf-autotable for the formatted session table.
+ * The output is a landscape A4 PDF downloaded directly to the browser.
+ */
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
+/** Short Portuguese day-name labels indexed by getDay() return value (0=Sun … 6=Sat). */
 const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
+/**
+ * Formats a Date object as "DD/MM/YYYY" using the Portuguese locale.
+ *
+ * @param {Date} d - the date to format
+ * @returns {string} formatted date string
+ */
 function formatDate(d) {
   return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+/**
+ * Generates and downloads a landscape A4 PDF containing the weekly schedule table.
+ *
+ * The table includes all non-overlapping sessions sorted by date then start time.
+ * Overlapping sessions are deliberately excluded because they represent unresolved
+ * conflicts that should not appear in a printable schedule.
+ *
+ * Columns: Dia (date + weekday), Horário (time range), Tipo (display name),
+ * Aula (class name), Notas (free-text notes).
+ *
+ * The file is saved as "horario-YYYY-MM-DD.pdf" where the date is the week's Monday.
+ *
+ * @param {Array}  sessions  - the sessions to include (typically all non-overlapping ones)
+ * @param {Date}   weekStart - the Monday of the week (used in the header and filename)
+ * @param {Date}   weekEnd   - the Sunday of the week (used in the header subtitle)
+ */
 export function exportToPDF(sessions, weekStart, weekEnd) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
 

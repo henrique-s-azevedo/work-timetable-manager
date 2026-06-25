@@ -1,3 +1,31 @@
+/**
+ * Dashboard page component — the main view after login.
+ *
+ * Responsibilities:
+ * - Week picker: the instructor selects an ISO week; the corresponding Monday/Sunday
+ *   dates are computed and a GET /api/timetable/sessions request is issued.
+ * - Weekly calendar: delegates rendering to WeeklyCalendar, passing the filtered sessions.
+ * - Session editing: clicking a session opens EditSessionModal for className/notes edits.
+ * - Metrics sidebar: counts sessions per type for the selected week; each row is also
+ *   a clickable type filter.
+ * - Day filter: a dropdown to narrow the calendar view to a single day of the week.
+ * - PDF export: generates a printable schedule via exportToPDF().
+ * - Clear week: prompts for confirmation then calls DELETE /api/timetable/weeks/{weekStart},
+ *   which removes all sessions from both the DB and Google Calendar.
+ *
+ * State management:
+ * - weekValue / weekStart / weekEnd: the currently selected week.
+ * - sessions: the list of TimetableSession maps returned by the backend.
+ * - typeFilter / dayFilter: active filter values; filtering is done client-side.
+ * - editSession: the session currently open in the edit modal (null if closed).
+ * - clearConfirm: controls the delete-week confirmation dialog visibility.
+ * - toast: transient notification shown for 3.5 seconds after each action.
+ *
+ * API interactions:
+ * - GET  /api/timetable/sessions?weekStart=YYYY-MM-DD — load sessions for a week.
+ * - DELETE /api/timetable/weeks/{weekStart} — remove all sessions for a week.
+ * - EditSessionModal handles PATCH and DELETE for individual sessions internally.
+ */
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -31,6 +59,13 @@ const DAYS = [
   { label: 'Domingo',  value: '0' },
 ]
 
+/**
+ * Converts an ISO week string (e.g., "2026-W25") to the Date object of the corresponding Monday.
+ * Uses the ISO 8601 week-date formula anchored on January 4th (which always falls in week 1).
+ *
+ * @param {string} dateStr - ISO week string in "YYYY-Www" format
+ * @returns {Date} the Monday of the given week
+ */
 function toMonday(dateStr) {
   // dateStr: "2026-W25"
   const [year, week] = dateStr.split('-W').map(Number)

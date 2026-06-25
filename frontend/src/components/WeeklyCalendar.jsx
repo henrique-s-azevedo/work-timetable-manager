@@ -1,9 +1,43 @@
+/**
+ * WeeklyCalendar component — renders a 7-day, time-gridded calendar for a single week.
+ *
+ * Props:
+ * - sessions {Array}   — list of session objects to display; each must have sessionDate,
+ *                        startTime, endTime, sessionTypeAbbrev, className, location,
+ *                        overlapping (bool), and selected (bool).
+ * - weekStart {Date}   — the Monday of the week to display.
+ * - onSessionClick {Function} — called with the session object when a block is clicked;
+ *                               used by Dashboard to open the edit modal and by
+ *                               SessionsPreview to open the detail panel.
+ *
+ * Layout model:
+ * - The calendar covers 06:00–22:15 in 15-minute slots (65 total slots).
+ * - Each slot maps to SLOT_HEIGHT (24px) of vertical space, giving a total grid height
+ *   of 1560px. This fixed pixel-per-minute ratio makes absolute positioning trivial.
+ * - Overlapping sessions within the same day are laid out side-by-side using a greedy
+ *   column-packing algorithm (layoutDaySessions). Sessions in the same transitive
+ *   overlap cluster share the same total column count so widths are uniform.
+ *
+ * Visual states:
+ * - Normal: colored background tint + left border in the session type color.
+ * - Overlapping: amber left border and amber text.
+ * - Deselected (selected === false): muted background and text; used in preview mode.
+ */
 import './WeeklyCalendar.css'
 
+/** Earliest visible time in minutes from midnight (06:00). */
 const TIME_START  = 6 * 60
+
+/** Latest visible time in minutes from midnight (22:15). */
 const TIME_END    = 22 * 60 + 15
+
+/** Duration of each grid slot in minutes. */
 const SLOT_MIN    = 15
+
+/** Pixel height of each 15-minute slot. */
 const SLOT_HEIGHT = 24
+
+/** Total number of 15-minute slots in the visible time range. */
 const TOTAL_SLOTS = (TIME_END - TIME_START) / SLOT_MIN
 
 const SESSION_COLORS = {
@@ -37,7 +71,24 @@ function toISODate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-// Assigns _col and _totalCols to each session so overlapping ones render side-by-side
+/**
+ * Computes the horizontal layout for sessions within a single day.
+ *
+ * Each session receives two extra properties:
+ * - _col {number}       — zero-based column index within the day column.
+ * - _totalCols {number} — total number of columns in the transitive overlap cluster;
+ *                         used to calculate percentage width and left offset.
+ *
+ * Algorithm:
+ * 1. Sort sessions by start time.
+ * 2. Greedy column assignment: place each session in the first available column
+ *    (a column is available if its last session ended before the current one starts).
+ * 3. BFS cluster detection: group sessions that are transitively overlapping and
+ *    assign the cluster's maximum _col + 1 as _totalCols for all members.
+ *
+ * @param {Array} sessions - sessions for a single day
+ * @returns {Array} a new array with _col and _totalCols added to each session
+ */
 function layoutDaySessions(sessions) {
   if (!sessions.length) return []
 

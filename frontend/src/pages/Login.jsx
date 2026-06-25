@@ -1,3 +1,24 @@
+/**
+ * Login page component.
+ *
+ * Responsibilities:
+ * - Renders the Google Sign-In button.
+ * - If the user is already authenticated (restored from localStorage), immediately
+ *   redirects to /dashboard without showing the login UI.
+ *
+ * OAuth flow:
+ * - Uses the implicit flow via useGoogleLogin from @react-oauth/google.
+ * - Scopes requested: openid, email, profile, and calendar (required to create/delete
+ *   Google Calendar events on the instructor's behalf).
+ * - On success: fetches the user's profile from Google's userinfo endpoint (to get name,
+ *   email, picture), then calls loginSuccess() from AuthContext which stores the token,
+ *   upserts the backend record, and sets the user state.
+ * - Navigates to /dashboard on completion.
+ *
+ * UI decisions:
+ * - A custom-styled button with the Google logo SVG is used instead of the default
+ *   @react-oauth/google button to match the app's design system.
+ */
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGoogleLogin } from '@react-oauth/google'
@@ -8,6 +29,7 @@ export default function Login() {
   const { user, loginSuccess } = useAuth()
   const navigate = useNavigate()
 
+  // Redirect already-authenticated users away from the login page.
   useEffect(() => {
     if (user) navigate('/dashboard', { replace: true })
   }, [user, navigate])
@@ -16,6 +38,8 @@ export default function Login() {
     flow: 'implicit',
     scope: 'openid email profile https://www.googleapis.com/auth/calendar',
     onSuccess: async (tokenResponse) => {
+      // Google's implicit flow returns the access token but not profile data directly;
+      // a separate userinfo call is required to obtain name, email, and picture.
       const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
       })

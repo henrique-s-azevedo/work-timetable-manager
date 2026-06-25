@@ -1,3 +1,36 @@
+/**
+ * SessionsPreview component — step 2 of the upload flow.
+ *
+ * Responsibilities:
+ * - Displays all parsed sessions on a WeeklyCalendar so the instructor can visually
+ *   review the timetable before exporting.
+ * - Detects and groups overlapping sessions in an "Overlap Queue" sidebar panel.
+ *   For each overlap group the instructor can choose which session to keep or keep both.
+ * - Allows the instructor to click any session to open an inline edit panel where they
+ *   can edit className and notes, or deselect the session from the export.
+ * - For PT (Personal Training) sessions, renders a PtSplitPanel instead of a plain edit
+ *   form, allowing the session to be subdivided into named client slots.
+ * - On export, calls expandForExport() to flatten PT groups into individual sessions,
+ *   then calls the onExport prop.
+ *
+ * Props:
+ * - sessions {Array}        — initial list of ParsedSessionDTO objects from the backend.
+ * - weekStart {Date}        — Monday of the week being previewed.
+ * - onExport {Function}     — called with the final expanded session list to trigger export.
+ * - onBack {Function}       — called when the user clicks "back" to return to step 1.
+ *
+ * State management:
+ * - sessions: local copy of the initial sessions, augmented with a synthetic _id for
+ *   stable identity tracking (parsed index). Mutations (toggles, field edits) happen here.
+ * - ptGroupsMap: { [_id]: Group[] } — maps PT session IDs to their slot group definitions.
+ * - activeSession: the session currently selected in the sidebar edit panel.
+ * - exporting: loading flag while the export API call is in-flight.
+ *
+ * Key derived values:
+ * - overlapGroups: memoized result of findOverlapGroups(); recomputed when sessions change.
+ * - unresolvedCount: overlap groups where more than one session is still selected.
+ * - selectedSessions: sessions with selected !== false.
+ */
 import { useState, useMemo } from 'react'
 import WeeklyCalendar from './WeeklyCalendar'
 import './SessionsPreview.css'
@@ -26,6 +59,20 @@ function addDays(d, n) {
   const r = new Date(d); r.setDate(r.getDate() + n); return r
 }
 
+/**
+ * Groups sessions into clusters of transitively overlapping sessions per day.
+ *
+ * Uses a BFS approach: for each unvisited session, builds a cluster by adding any
+ * session that overlaps it (directly or transitively). Only clusters with more than
+ * one member are included in the result — single sessions are not reported as overlaps.
+ *
+ * The overlap check uses exclusive end times (half-open intervals): sessions that share
+ * only an endpoint (e.g., 09:00–10:00 and 10:00–11:00) are not considered overlapping.
+ *
+ * @param {Array} sessions - all sessions (across all days) to check
+ * @returns {Array<Array>} array of overlap groups, each group being an array of sessions;
+ *                         sorted by the first session's date
+ */
 function findOverlapGroups(sessions) {
   const byDate = {}
   sessions.forEach(s => {
@@ -56,7 +103,22 @@ function findOverlapGroups(sessions) {
   return groups.sort((a, b) => a[0].sessionDate.localeCompare(b[0].sessionDate))
 }
 
-// Expand PT sessions that have groups defined into individual sessions for export
+/**
+ * Expands PT sessions that have been split into named client groups into individual
+ * export-ready sessions.
+ *
+ * For PT sessions with groups defined in ptGroupsMap:
+ * - Each named group becomes a separate session with adjusted startTime/endTime and
+ *   className set to the group's student name.
+ * - Unassigned slots (not covered by any group) are collected into contiguous ranges
+ *   and exported as additional unnamed sessions (className: null).
+ *
+ * Non-PT sessions and PT sessions without any groups are passed through unchanged.
+ *
+ * @param {Array} sessions     - the selected sessions to export
+ * @param {Object} ptGroupsMap - { [_id]: { id, slots, name }[] } from PtSplitPanel state
+ * @returns {Array} expanded list ready for POST /api/timetable/export
+ */
 function expandForExport(sessions, ptGroupsMap) {
   const result = []
   for (const s of sessions) {
@@ -103,6 +165,29 @@ function expandForExport(sessions, ptGroupsMap) {
 
 // ── PT split panel ────────────────────────────────────────────────────────────
 
+/**
+ * PtSplitPanel — inline editor for subdividing a Personal Training session into
+ * named client slots.
+ *
+ * Renders the PT session as a grid of 15-minute slot buttons. The instructor selects
+ * contiguous or non-contiguous slots, optionally types a student name, and clicks
+ * "Criar grupo" to assign those slots to the named client.
+ *
+ * Props:
+ * - session {Object}         — the PT session being split (provides start/end time).
+ * - groups {Array}           — current list of { id, slots, name } group definitions.
+ * - onChange {Function}      — called with the updated groups array on every change.
+ *
+ * State:
+ * - selectedSlots {Set}      — indices of currently highlighted (uncommitted) slots.
+ * - studentName {string}     — the name being typed for the next group.
+ *
+ * UX decisions:
+ * - Already-assigned slots are rendered as disabled buttons showing the student name.
+ * - The "Criar grupo" button is only shown when at least one slot is selected.
+ * - Unassigned slots remaining after all groups are defined are shown as a summary
+ *   row so the instructor knows how many free slots will be exported without a name.
+ */
 function PtSplitPanel({ session, groups, onChange }) {
   const [selectedSlots, setSelectedSlots] = useState(new Set())
   const [studentName, setStudentName]     = useState('')

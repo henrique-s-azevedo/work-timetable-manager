@@ -1,3 +1,34 @@
+/**
+ * EditSessionModal component — modal dialog for editing or deleting a persisted session.
+ *
+ * Shown when the instructor clicks a session block in the Dashboard's WeeklyCalendar.
+ * This operates on already-exported sessions (those that exist in the database and
+ * have a Google Calendar event), unlike the inline editor in SessionsPreview.
+ *
+ * Props:
+ * - session {Object}      — the TimetableSession map from the backend (must have id,
+ *                           sessionDate, startTime, endTime, displayName, sessionTypeAbbrev,
+ *                           className, notes, location).
+ * - onSave {Function}     — called with the updated session map after a successful PATCH.
+ * - onDelete {Function}   — called with the session id after a successful DELETE.
+ * - onClose {Function}    — called when the modal should be dismissed without changes.
+ *
+ * Editable fields: className (class name / event title suffix) and notes.
+ * Read-only display: location (if present), date/time header, type badge.
+ *
+ * Deletion flow:
+ * - First click shows a confirmation row (avoids accidental deletes).
+ * - Second click (Confirmar) sends DELETE /api/timetable/sessions/{id}.
+ *
+ * API interactions:
+ * - PATCH  /api/timetable/sessions/{id} — updates className and notes.
+ * - DELETE /api/timetable/sessions/{id} — deletes the session and its Calendar event.
+ *
+ * UX decisions:
+ * - Clicking the overlay background (outside the modal card) dismisses the modal.
+ * - The delete control is visually separated below the save form to reduce
+ *   the chance of accidentally triggering it.
+ */
 import { useState } from 'react'
 import api from '../api'
 

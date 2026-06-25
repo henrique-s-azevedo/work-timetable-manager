@@ -1,3 +1,14 @@
+/**
+ * ConfirmDialog component — modal confirmation dialog for destructive actions.
+ *
+ * Props:
+ * - message {string}     — the confirmation prompt text shown to the user.
+ * - onConfirm {Function} — called when the user clicks "Confirmar".
+ * - onCancel {Function}  — called when the user clicks "Cancelar".
+ *
+ * Used by the Dashboard to gate the "Clear Week" action, which would permanently
+ * remove sessions from both the database and Google Calendar.
+ */
 export default function ConfirmDialog({ message, onConfirm, onCancel }) {
   return (
     <div className="modal-overlay">
