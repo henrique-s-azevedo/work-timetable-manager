@@ -8,6 +8,9 @@ const SESSION_COLORS = {
   AG: '#4F6EF7', AI: '#4F6EF7', CF: '#4F6EF7', TRB: '#4F6EF7',
 }
 
+// Only these types carry a "nome da aula" field
+const HAS_CLASS_NAME = new Set(['AG', 'AI', 'CF', 'TRB', 'NT'])
+
 const DAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
 function timeToMinutes(t) {
@@ -15,18 +18,20 @@ function timeToMinutes(t) {
   return h * 60 + m
 }
 
+function minutesToTime(min) {
+  return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
+}
+
 function addDays(d, n) {
   const r = new Date(d); r.setDate(r.getDate() + n); return r
 }
 
-// Groups sessions into clusters of overlapping sessions (by actual time, per day)
 function findOverlapGroups(sessions) {
   const byDate = {}
   sessions.forEach(s => {
     if (!byDate[s.sessionDate]) byDate[s.sessionDate] = []
     byDate[s.sessionDate].push(s)
   })
-
   const groups = []
   for (const daySessions of Object.values(byDate)) {
     const visited = new Set()
@@ -40,8 +45,7 @@ function findOverlapGroups(sessions) {
           if (!cluster.has(j) &&
               timeToMinutes(daySessions[cur].startTime) < timeToMinutes(daySessions[j].endTime) &&
               timeToMinutes(daySessions[j].startTime)  < timeToMinutes(daySessions[cur].endTime)) {
-            cluster.add(j)
-            queue.push(j)
+            cluster.add(j); queue.push(j)
           }
         }
       }
@@ -52,12 +56,170 @@ function findOverlapGroups(sessions) {
   return groups.sort((a, b) => a[0].sessionDate.localeCompare(b[0].sessionDate))
 }
 
+// Expand PT sessions that have groups defined into individual sessions for export
+function expandForExport(sessions, ptGroupsMap) {
+  const result = []
+  for (const s of sessions) {
+    const groups = ptGroupsMap[s._id]
+    if (s.sessionTypeAbbrev !== 'PT' || !groups?.length) {
+      result.push(s)
+      continue
+    }
+    const startMin   = timeToMinutes(s.startTime)
+    const endMin     = timeToMinutes(s.endTime)
+    const numSlots   = (endMin - startMin) / 15
+    const assigned   = new Set(groups.flatMap(g => g.slots))
+
+    // Named groups (sorted by first slot)
+    const sorted = [...groups].sort((a, b) => Math.min(...a.slots) - Math.min(...b.slots))
+    for (const g of sorted) {
+      const slots = [...g.slots].sort((a, b) => a - b)
+      result.push({
+        ...s,
+        startTime: minutesToTime(startMin + slots[0] * 15),
+        endTime:   minutesToTime(startMin + (slots[slots.length - 1] + 1) * 15),
+        className: g.name || null,
+      })
+    }
+
+    // Unassigned slots → contiguous ranges exported without a name
+    let rangeStart = null
+    for (let i = 0; i <= numSlots; i++) {
+      const free = i < numSlots && !assigned.has(i)
+      if (free && rangeStart === null) { rangeStart = i }
+      if (!free && rangeStart !== null) {
+        result.push({
+          ...s,
+          startTime: minutesToTime(startMin + rangeStart * 15),
+          endTime:   minutesToTime(startMin + i * 15),
+          className: null,
+        })
+        rangeStart = null
+      }
+    }
+  }
+  return result
+}
+
+// ── PT split panel ────────────────────────────────────────────────────────────
+
+function PtSplitPanel({ session, groups, onChange }) {
+  const [selectedSlots, setSelectedSlots] = useState(new Set())
+  const [studentName, setStudentName]     = useState('')
+
+  const startMin  = timeToMinutes(session.startTime)
+  const numSlots  = (timeToMinutes(session.endTime) - startMin) / 15
+  const assigned  = new Set(groups.flatMap(g => g.slots))
+
+  const slotTime = (idx) => minutesToTime(startMin + idx * 15)
+
+  const toggleSlot = (idx) => {
+    if (assigned.has(idx)) return
+    setSelectedSlots(prev => {
+      const next = new Set(prev)
+      next.has(idx) ? next.delete(idx) : next.add(idx)
+      return next
+    })
+  }
+
+  const addGroup = () => {
+    if (!selectedSlots.size) return
+    onChange([...groups, {
+      id:    Date.now(),
+      slots: [...selectedSlots].sort((a, b) => a - b),
+      name:  studentName.trim(),
+    }])
+    setSelectedSlots(new Set())
+    setStudentName('')
+  }
+
+  const removeGroup = (id) => onChange(groups.filter(g => g.id !== id))
+
+  const unassignedCount = numSlots - assigned.size
+
+  return (
+    <div className="pt-split-panel">
+      <p className="pt-split-hint">
+        Clica nos slots para selecionar, depois atribui um nome de aluno.
+      </p>
+
+      <div className="pt-slots">
+        {Array.from({ length: numSlots }, (_, i) => {
+          const isAssigned = assigned.has(i)
+          const isSelected = selectedSlots.has(i)
+          const ownerGroup = groups.find(g => g.slots.includes(i))
+          return (
+            <button
+              key={i}
+              className={`pt-slot${isAssigned ? ' assigned' : ''}${isSelected ? ' selected' : ''}`}
+              onClick={() => toggleSlot(i)}
+              disabled={isAssigned}
+              title={isAssigned ? (ownerGroup?.name || 'sem nome') : `${slotTime(i)}–${slotTime(i + 1)}`}
+            >
+              <span className="pt-slot-time">{slotTime(i)}</span>
+              {isAssigned && ownerGroup?.name && (
+                <span className="pt-slot-label">{ownerGroup.name}</span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {selectedSlots.size > 0 && (
+        <div className="pt-add-group">
+          <input
+            type="text"
+            placeholder="Nome do aluno"
+            value={studentName}
+            onChange={e => setStudentName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && addGroup()}
+            className="inline-edit"
+            autoFocus
+          />
+          <button className="btn btn-sm btn-primary" onClick={addGroup}>
+            Criar grupo ({selectedSlots.size}×15 min)
+          </button>
+        </div>
+      )}
+
+      {groups.length > 0 && (
+        <div className="pt-groups-list">
+          {[...groups]
+            .sort((a, b) => Math.min(...a.slots) - Math.min(...b.slots))
+            .map(g => {
+              const slots = [...g.slots].sort((a, b) => a - b)
+              return (
+                <div key={g.id} className="pt-group-item">
+                  <span className="pt-group-time">
+                    {slotTime(slots[0])}–{slotTime(slots[slots.length - 1] + 1)}
+                  </span>
+                  <span className="pt-group-name">{g.name || <em>sem nome</em>}</span>
+                  <button className="btn-close" onClick={() => removeGroup(g.id)}>✕</button>
+                </div>
+              )
+            })
+          }
+          {unassignedCount > 0 && (
+            <div className="pt-group-item unassigned">
+              <span className="pt-group-time">restantes ({unassignedCount}×15 min)</span>
+              <span className="pt-group-name"><em>sem nome</em></span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 export default function SessionsPreview({ sessions: initialSessions, weekStart, onExport, onBack }) {
   const [sessions, setSessions] = useState(
     () => initialSessions.map((s, i) => ({ ...s, _id: i, selected: s.selected !== false }))
   )
-  const [exporting, setExporting]       = useState(false)
-  const [activeSession, setActiveSession] = useState(null)
+  const [ptGroupsMap, setPtGroupsMap]       = useState({})   // { [_id]: Group[] }
+  const [exporting, setExporting]           = useState(false)
+  const [activeSession, setActiveSession]   = useState(null)
 
   const weekEnd = addDays(weekStart, 6)
 
@@ -71,16 +233,17 @@ export default function SessionsPreview({ sessions: initialSessions, weekStart, 
     setActiveSession(prev => prev?._id === id ? { ...prev, [field]: value } : prev)
   }
 
-  // Keep only the sessions whose _id is in keepIds, deselect the rest in the group
   const keepOnly = (groupIds, keepIds) => {
     setSessions(prev => prev.map(s =>
       groupIds.includes(s._id) ? { ...s, selected: keepIds.includes(s._id) } : s
     ))
   }
 
+  const setPtGroups = (id, groups) =>
+    setPtGroupsMap(prev => ({ ...prev, [id]: groups }))
+
   const overlapGroups = useMemo(() => findOverlapGroups(sessions), [sessions])
 
-  // A group is "unresolved" when more than one session in it is still selected
   const unresolvedCount = overlapGroups.filter(group =>
     group.filter(gs => sessions.find(x => x._id === gs._id)?.selected !== false).length > 1
   ).length
@@ -89,7 +252,7 @@ export default function SessionsPreview({ sessions: initialSessions, weekStart, 
 
   const handleExport = async () => {
     setExporting(true)
-    await onExport(selectedSessions)
+    await onExport(expandForExport(selectedSessions, ptGroupsMap))
     setExporting(false)
   }
 
@@ -139,29 +302,21 @@ export default function SessionsPreview({ sessions: initialSessions, weekStart, 
             <div className="overlap-queue">
               <h3 className="overlap-queue-title">⚠️ Sobreposições ({overlapGroups.length})</h3>
               {overlapGroups.map((group, gi) => {
-                // Always read live state
-                const live = group.map(gs => sessions.find(x => x._id === gs._id) || gs)
+                const live    = group.map(gs => sessions.find(x => x._id === gs._id) || gs)
                 const groupIds = live.map(s => s._id)
-                const d = new Date(live[0].sessionDate + 'T00:00:00')
-                const dayLabel = DAY_NAMES[d.getDay()]
+                const d        = new Date(live[0].sessionDate + 'T00:00:00')
                 const minStart = live.reduce((m, s) => s.startTime < m ? s.startTime : m, live[0].startTime)
                 const maxEnd   = live.reduce((m, s) => s.endTime   > m ? s.endTime   : m, live[0].endTime)
-
                 return (
                   <div key={gi} className="overlap-card">
                     <div className="overlap-card-date">
-                      {dayLabel} · {minStart.slice(0,5)}–{maxEnd.slice(0,5)}
+                      {DAY_NAMES[d.getDay()]} · {minStart.slice(0,5)}–{maxEnd.slice(0,5)}
                     </div>
-
                     {live.map(s => {
                       const color = SESSION_COLORS[s.sessionTypeAbbrev] || '#4F6EF7'
-                      const deselected = s.selected === false
                       return (
-                        <div key={s._id} className={`overlap-session-row${deselected ? ' deselected' : ''}`}>
-                          <span
-                            className="type-badge"
-                            style={{ background: color + '22', color, border: `1px solid ${color}` }}
-                          >
+                        <div key={s._id} className={`overlap-session-row${s.selected === false ? ' deselected' : ''}`}>
+                          <span className="type-badge" style={{ background: color + '22', color, border: `1px solid ${color}` }}>
                             {s.sessionTypeAbbrev}
                           </span>
                           <span className="overlap-session-name">{s.displayName}</span>
@@ -169,21 +324,15 @@ export default function SessionsPreview({ sessions: initialSessions, weekStart, 
                         </div>
                       )
                     })}
-
                     <div className="overlap-actions">
                       {live.map(s => (
-                        <button
-                          key={s._id}
-                          className="btn btn-sm btn-secondary"
-                          onClick={() => keepOnly(groupIds, [s._id])}
-                        >
+                        <button key={s._id} className="btn btn-sm btn-secondary"
+                          onClick={() => keepOnly(groupIds, [s._id])}>
                           Só {s.sessionTypeAbbrev}
                         </button>
                       ))}
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => keepOnly(groupIds, groupIds)}
-                      >
+                      <button className="btn btn-sm btn-secondary"
+                        onClick={() => keepOnly(groupIds, groupIds)}>
                         Ambas
                       </button>
                     </div>
@@ -193,14 +342,15 @@ export default function SessionsPreview({ sessions: initialSessions, weekStart, 
             </div>
           )}
 
-          {/* Edit panel for clicked session */}
+          {/* Edit / split panel */}
           {activeSession && (() => {
-            const s = sessions.find(x => x._id === activeSession._id) || activeSession
+            const s     = sessions.find(x => x._id === activeSession._id) || activeSession
             const color = SESSION_COLORS[s.sessionTypeAbbrev] || '#4F6EF7'
+            const isPT  = s.sessionTypeAbbrev === 'PT'
             return (
               <div className="session-edit-panel">
                 <div className="edit-panel-header">
-                  <span>Editar sessão</span>
+                  <span>{isPT ? 'Dividir PT' : 'Editar sessão'}</span>
                   <button className="btn-close" onClick={() => setActiveSession(null)}>✕</button>
                 </div>
 
@@ -214,24 +364,37 @@ export default function SessionsPreview({ sessions: initialSessions, weekStart, 
                   </span>
                 </div>
 
-                <div className="edit-panel-fields">
-                  <label>Nome da aula</label>
-                  <input
-                    type="text"
-                    value={s.className || ''}
-                    onChange={e => updateField(s._id, 'className', e.target.value)}
-                    placeholder="Nome da aula"
-                    className="inline-edit"
+                {isPT ? (
+                  <PtSplitPanel
+                    key={s._id}
+                    session={s}
+                    groups={ptGroupsMap[s._id] || []}
+                    onChange={groups => setPtGroups(s._id, groups)}
                   />
-                  <label>Notas</label>
-                  <input
-                    type="text"
-                    value={s.notes || ''}
-                    onChange={e => updateField(s._id, 'notes', e.target.value)}
-                    placeholder="Notas"
-                    className="inline-edit"
-                  />
-                </div>
+                ) : (
+                  <div className="edit-panel-fields">
+                    {HAS_CLASS_NAME.has(s.sessionTypeAbbrev) && (
+                      <>
+                        <label>Nome da aula</label>
+                        <input
+                          type="text"
+                          value={s.className || ''}
+                          onChange={e => updateField(s._id, 'className', e.target.value)}
+                          placeholder="Nome da aula"
+                          className="inline-edit"
+                        />
+                      </>
+                    )}
+                    <label>Notas</label>
+                    <input
+                      type="text"
+                      value={s.notes || ''}
+                      onChange={e => updateField(s._id, 'notes', e.target.value)}
+                      placeholder="Notas"
+                      className="inline-edit"
+                    />
+                  </div>
+                )}
 
                 <label className="toggle-label">
                   <input
@@ -246,7 +409,6 @@ export default function SessionsPreview({ sessions: initialSessions, weekStart, 
             )
           })()}
 
-          {/* Hint when sidebar is empty */}
           {overlapGroups.length === 0 && !activeSession && (
             <p className="preview-hint">Clica numa sessão para editar ou excluir da exportação.</p>
           )}
