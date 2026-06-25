@@ -736,4 +736,25 @@ public class TimetableParserService {
     public static Map<String, Integer> getDayToOffset() {
         return Collections.unmodifiableMap(DAY_TO_OFFSET);
     }
+
+    /**
+     * Returns the hardcoded fallback column ranges used when dynamic Row-1 day-header
+     * discovery finds no recognisable headers.
+     *
+     * <p>Each element is a three-element array {@code {dayOffset, startCol, endCol}}
+     * (zero-based column indices, inclusive on both ends), ordered Monday through Sunday.</p>
+     *
+     * @return a 7×3 array of day-block descriptors
+     */
+    public static int[][] getDayBlocks() {
+        return new int[][] {
+            {0,   5,  49},
+            {1,  50,  93},
+            {2,  94, 140},
+            {3, 141, 184},
+            {4, 185, 228},
+            {5, 229, 272},
+            {6, 273, 316},
+        };
+    }
 }
