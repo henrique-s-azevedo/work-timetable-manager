@@ -44,12 +44,6 @@ public class GoogleCalendarService {
     private static final ZoneId LISBON_ZONE = ZoneId.of("Europe/Lisbon");
 
     /**
-     * Unused formatter constant retained for future use.
-     * Active formatting is performed inline in {@link #toEventDateTime}.
-     */
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
-
-    /**
      * Creates a new Google Calendar event for the given session in the instructor's primary calendar.
      *
      * <p>The event title is assembled by {@link #buildTitle} and the color is set from the

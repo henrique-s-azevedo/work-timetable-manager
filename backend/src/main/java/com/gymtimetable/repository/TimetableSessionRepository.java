@@ -29,18 +29,6 @@ public interface TimetableSessionRepository extends JpaRepository<TimetableSessi
      */
     List<TimetableSession> findByInstructorAndWeekStartDate(Instructor instructor, LocalDate weekStartDate);
 
-    /**
-     * Returns only the sessions that have been successfully exported to Google Calendar
-     * for a given instructor and week.
-     *
-     * <p>Reserved for cases where the application needs to distinguish between sessions
-     * that exist in the database but have not yet produced a calendar event.</p>
-     *
-     * @param instructor   the owning instructor
-     * @param weekStartDate the Monday of the target ISO week
-     * @return list of exported sessions; empty if none exist
-     */
-    List<TimetableSession> findByInstructorAndWeekStartDateAndExportedToCalendarTrue(Instructor instructor, LocalDate weekStartDate);
 
     /**
      * Returns all sessions for a given instructor and week, sorted chronologically.

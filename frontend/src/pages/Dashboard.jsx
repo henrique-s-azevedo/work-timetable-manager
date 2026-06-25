@@ -26,7 +26,7 @@
  * - DELETE /api/timetable/weeks/{weekStart} — remove all sessions for a week.
  * - EditSessionModal handles PATCH and DELETE for individual sessions internally.
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../api'

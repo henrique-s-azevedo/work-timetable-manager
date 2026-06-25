@@ -34,7 +34,7 @@
  *   Monday date; weekStart is always normalized to Monday via toMonday().
  */
 import { useState, useRef } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../api'
 import SessionsPreview from './SessionsPreview'
@@ -63,7 +63,6 @@ function toISODate(d) {
 export default function UploadPanel() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
 
   const [file, setFile] = useState(null)
   const [weekValue, setWeekValue] = useState('')

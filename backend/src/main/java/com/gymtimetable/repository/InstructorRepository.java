@@ -27,15 +27,4 @@ public interface InstructorRepository extends JpaRepository<Instructor, Long> {
      */
     Optional<Instructor> findByGoogleId(String googleId);
 
-    /**
-     * Finds an instructor by their Google account e-mail address.
-     *
-     * <p>Currently reserved for administrative lookups. The primary authentication path
-     * uses {@link #findByGoogleId(String)} instead, as the Google ID is more stable than
-     * the e-mail address.</p>
-     *
-     * @param email the instructor's Google account e-mail
-     * @return an {@link Optional} containing the instructor if found, or empty otherwise
-     */
-    Optional<Instructor> findByEmail(String email);
 }
