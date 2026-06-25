@@ -1,6 +1,6 @@
 # Work Timetable Manager
 
-> Turn a confusing weekly Excel timetable into a clean, personalised Google Calendar — in seconds.
+> Turn a confusing weekly Excel timetable into a clean, personalised Google Calendar in seconds.
 
 [![Backend](https://img.shields.io/badge/backend-Spring%20Boot%203.2-6DB33F?logo=spring&logoColor=white)](https://spring.io/projects/spring-boot)
 [![Frontend](https://img.shields.io/badge/frontend-React%2019-61DAFB?logo=react&logoColor=black)](https://react.dev)
@@ -28,13 +28,15 @@
 
 ## About
 
-Every week, gym instructors receive a large, densely packed Excel timetable shared across the entire team. Finding your own sessions inside it is error-prone and time-consuming — and missing or misreading a session has real consequences.
+Every week in my company, gym instructors across all 120 locations receive a large, densely packed Excel timetable shared with their entire local team. That timetable covers the schedules of the whole team — the average team has around 10 workers — so each instructor has to find their own daily sessions among 9 other people's initials across up to 15 different task columns. Finding your own sessions is therefore error-prone and time-consuming, and missing or misreading one has real consequences: it can impact gym quality and erode trust in workers when errors happen repeatedly.
 
-**Work Timetable Manager** was built to solve this. Upload the weekly Excel file, and the app automatically extracts your sessions, shows you a clean weekly calendar preview, and exports each session directly to your Google Calendar — complete with the correct title, time, colour, and notes.
+**Work Timetable Manager** was built to solve this. Upload the weekly Excel file and the app automatically extracts your sessions, shows you a clean weekly calendar preview, and exports each session directly to your Google Calendar, complete with the correct title, time, colour, and any notes you want to add. Personal trainer sessions can also be customised to fit each trainer/student's individual needs.
 
-The result: **no more manually reading a 316-column spreadsheet**. Your week is ready in your calendar before you leave the office.
+The app uses Google Sign-In exclusively, so there is no need to create a separate account. It connects automatically to your personal Google Calendar.
 
-Beyond individual use, if adopted team-wide it enables CMs (Coordinating Managers) to distribute timetables more reliably, reducing scheduling errors across the department.
+The result: **no more manually reading a 316-column spreadsheet**. Your week is ready in your calendar with no pain or errors.
+
+This has already been rolled out to my team at one gym, but if adopted company-wide it could significantly reduce scheduling errors and stress. If Coordinating Managers (CMs) are interested, the app can be extended with an admin dashboard that lets them distribute timetables directly to their teams, eliminating the Excel file entirely.
 
 ---
 
@@ -52,17 +54,19 @@ Beyond individual use, if adopted team-wide it enables CMs (Coordinating Manager
 
 ![Upload page](docs/images/excel%20timetable%20upload%20page.png)
 
+> **Want to try it out?** A sample timetable file matching the expected format is included at [`docs/timetable_example.xlsx`](docs/timetable_example.xlsx). Download it and upload it in the app to see the full parsing and export flow without needing a real company timetable.
+
 ---
 
 ### Review Before Exporting
-> Inspect every parsed session, deselect anything you don't want, and confirm before anything touches your calendar.
+> Inspect every parsed session, deselect anything you don't want, and confirm before anything is written to your calendar. Personalise PT blocks to fit individual trainer/student needs and add notes to any session — for example, which release you plan to teach in a class or which client you will be evaluating in an AF.
 
 ![Export preview](docs/images/export%20preview.png)
 
 ---
 
 ### Your Weekly Dashboard
-> Browse any week at a glance. Filter by session type or day, edit session notes, and export a PDF for offline reference.
+> Browse any week at a glance. Filter by session type or day, edit session notes, and export a PDF for offline reference or when you can't access Google Calendar on your phone.
 
 ![Dashboard](docs/images/Dashboard.png)
 
@@ -79,10 +83,10 @@ Beyond individual use, if adopted team-wide it enables CMs (Coordinating Manager
 
 | Feature | Description |
 |---|---|
-| **Google Sign-In** | One-click login via Google OAuth 2.0; no passwords stored |
+| **Google Sign-In** | One-click login via Google OAuth 2.0; no passwords stored; no in-app users needed |
 | **Excel parsing** | Reads the gym's proprietary 316-column `.xlsx` layout; handles merged cells, carry-forward abbreviations, and sub-location labels |
 | **Smart session detection** | Automatically groups consecutive 15-minute slots into sessions, detects overlaps, and splits weight-room blocks around group-class conflicts |
-| **Calendar preview** | Full review step before export — deselect sessions, see overlap warnings, split PT client groups |
+| **Calendar preview** | Full review step before export — deselect sessions, see overlap warnings, split/group PT client workouts |
 | **Google Calendar export** | Creates colour-coded events with correct titles, times, and notes directly in your primary Google Calendar |
 | **Weekly dashboard** | Visual calendar grid filtered by type or day; metrics sidebar with per-type session counts |
 | **In-app editing** | Edit class name and notes on any session; changes sync to Google Calendar instantly |
@@ -121,7 +125,7 @@ Beyond individual use, if adopted team-wide it enables CMs (Coordinating Manager
 ### Infrastructure
 | Service | Purpose |
 |---|---|
-| [Railway](https://railway.app) | Backend hosting + PostgreSQL database |
+| [Railway](https://railway.app) | Backend hosting + PostgreSQL database (on Neon) |
 | [Vercel](https://vercel.com) | Frontend hosting |
 | Google Cloud Console | OAuth 2.0 credentials & Calendar API |
 
@@ -186,6 +190,10 @@ The gym timetable is a proprietary `.xlsx` file with up to **316 columns** (one 
 - A Google Cloud project with:
   - **OAuth 2.0 Web Client** credentials
   - **Google Calendar API** enabled
+
+### Try the Example Timetable
+
+A sample `.xlsx` file matching the expected format is included at [`docs/timetable_example.xlsx`](docs/timetable_example.xlsx). Once the app is running, upload it on the Upload page to see the full parsing and export flow without needing a real company timetable.
 
 ### Running Locally
 
@@ -294,6 +302,7 @@ work-timetable-manager/
 │   └── vite.config.js
 │
 └── docs/
+    ├── timetable_example.xlsx   # Sample timetable for testing
     └── images/                  # Screenshots used in this README
 ```
 
@@ -305,13 +314,8 @@ The following features are planned for future releases:
 
 - **Custom session colours** — let each instructor choose their own colour scheme for session types instead of using the default Google Calendar palette
 - **Custom personal sessions** — add non-timetable activities (gym sessions, meetings, personal appointments) directly in the app, removing the need for a separate calendar app to manage the full week
+- **Apple Calendar support** — extend the export functionality to Apple Calendar for users outside the Google ecosystem
 - **Admin dashboard** *(requires management buy-in)* — a manager-facing view that links all team members to their supervisor, enabling timetables to be built and distributed directly within the app — eliminating the Excel file entirely and reducing the organisational overhead that comes with it
-
----
-
-## License
-
-Distributed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
