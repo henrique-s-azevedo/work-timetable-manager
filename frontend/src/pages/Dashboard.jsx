@@ -21,7 +21,15 @@ const DISPLAY_NAMES = {
   AULAS_GRUPO: 'Aulas de Grupo',
 }
 
-const DAYS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
+const DAYS = [
+  { label: 'Segunda',  value: '1' },
+  { label: 'Terça',    value: '2' },
+  { label: 'Quarta',   value: '3' },
+  { label: 'Quinta',   value: '4' },
+  { label: 'Sexta',    value: '5' },
+  { label: 'Sábado',   value: '6' },
+  { label: 'Domingo',  value: '0' },
+]
 
 function toMonday(dateStr) {
   // dateStr: "2026-W25"
@@ -172,10 +180,7 @@ export default function Dashboard() {
         <div className="topbar-right">
           <button
             className="btn btn-secondary"
-            onClick={() => {
-              if (!weekStart) { showToast('Seleciona uma semana primeiro.', 'error'); return }
-              navigate('/upload')
-            }}
+            onClick={() => navigate('/upload')}
           >
             ↑ Upload Ficheiro
           </button>
@@ -222,8 +227,8 @@ export default function Dashboard() {
               onChange={e => setDayFilter(e.target.value)}
             >
               <option value="all">Todos</option>
-              {DAYS.map((d, i) => (
-                <option key={i} value={String(i)}>{d}</option>
+              {DAYS.map(d => (
+                <option key={d.value} value={d.value}>{d.label}</option>
               ))}
             </select>
           </div>
