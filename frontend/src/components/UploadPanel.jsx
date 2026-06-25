@@ -181,7 +181,7 @@ export default function UploadPanel() {
           </div>
 
           <div className="form-group">
-            <label>Semana (escolhe qualquer dia da semana)</label>
+            <label>SEMANA (em que dia começa a semana do ficheiro?)</label>
             <input
               type="date"
               value={weekValue}
