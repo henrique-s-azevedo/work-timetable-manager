@@ -119,8 +119,8 @@
 
 .metric-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
   width: 100%;
   padding: 6px 8px;
   background: none;
@@ -150,11 +150,14 @@
 }
 
 .metric-count {
-  font-weight: 700;
-  font-size: 13px;
-  min-width: 20px;
-  text-align: right;
-  margin-left: 6px;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.metric-row.active .metric-count {
+  color: var(--accent);
 }
 
 .day-filter {

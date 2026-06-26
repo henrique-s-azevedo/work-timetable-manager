@@ -90,6 +90,20 @@ function toISODate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function formatDuration(typeSessions) {
+  const n = typeSessions.length
+  if (n === 0) return null
+  const totalMinutes = typeSessions.reduce((sum, s) => {
+    const [sh, sm] = s.startTime.split(':').map(Number)
+    const [eh, em] = s.endTime.split(':').map(Number)
+    return sum + (eh * 60 + em) - (sh * 60 + sm)
+  }, 0)
+  const h = Math.floor(totalMinutes / 60)
+  const m = totalMinutes % 60
+  const timeStr = h > 0 && m > 0 ? `${h}h${m}'` : h > 0 ? `${h}h` : `${m}'`
+  return `${timeStr}(${n} bloco${n !== 1 ? 's' : ''})`
+}
+
 export default function Dashboard() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -135,11 +149,22 @@ export default function Dashboard() {
     loadSessions(monday)
   }
 
-  const metrics = Object.entries(DISPLAY_NAMES).map(([type, name]) => ({
-    type,
-    name,
-    count: sessions.filter(s => s.sessionType === type).length,
-  }))
+  const metricsBase = sessions.filter(s => {
+    if (dayFilter !== 'all') {
+      const dayIdx = new Date(s.sessionDate + 'T00:00:00').getDay()
+      if (String(dayIdx) !== dayFilter) return false
+    }
+    return true
+  })
+
+  const metrics = Object.entries(DISPLAY_NAMES).map(([type, name]) => {
+    const typeSessions = metricsBase.filter(s => s.sessionType === type)
+    return { type, name, count: typeSessions.length, duration: formatDuration(typeSessions) }
+  })
+
+  const metricsTitle = dayFilter === 'all'
+    ? 'Esta semana'
+    : DAYS.find(d => d.value === dayFilter)?.label ?? 'Esta semana'
 
   const exportedCount = sessions.filter(s => s.exportedToCalendar).length
 
@@ -241,7 +266,7 @@ export default function Dashboard() {
         {/* Sidebar */}
         <aside className="sidebar">
           <div className="metrics">
-            <p className="metrics-title">Esta semana</p>
+            <p className="metrics-title">{metricsTitle}</p>
             {metrics.map(m => (
               <button
                 key={m.type}
@@ -249,7 +274,7 @@ export default function Dashboard() {
                 onClick={() => setTypeFilter(prev => prev === m.type ? 'all' : m.type)}
               >
                 <span className="metric-name">{m.name}</span>
-                <span className="metric-count">{m.count}</span>
+                {m.duration && <span className="metric-count">{m.duration}</span>}
               </button>
             ))}
           </div>
