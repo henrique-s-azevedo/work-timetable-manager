@@ -57,7 +57,6 @@ public class SecurityConfig {
      *   <li>{@code OPTIONS /**} — preflight CORS requests must not require authentication.</li>
      *   <li>{@code POST /api/auth/login} — the login endpoint itself carries the token in the
      *       body and must be accessible before the security context is fully established.</li>
-     *   <li>{@code GET /actuator/health} — health check for deployment platforms (Railway).</li>
      * </ul>
      *
      * @param http the {@link HttpSecurity} builder provided by Spring
@@ -73,7 +72,6 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/login").permitAll()
-                .requestMatchers("/actuator/health").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex

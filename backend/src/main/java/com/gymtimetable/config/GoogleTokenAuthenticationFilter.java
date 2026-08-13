@@ -13,8 +13,10 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Servlet filter that validates incoming Google OAuth 2.0 access tokens and populates
@@ -31,10 +33,12 @@ import java.util.Map;
  * no authentication object is set. The request then proceeds to the filter chain and will
  * be rejected by Spring Security for protected endpoints.</p>
  *
- * <p><strong>Note:</strong> Token validation is performed synchronously via a remote HTTP
- * call on every authenticated request. This introduces latency proportional to the
- * round-trip to Google's servers. A caching layer or local JWT verification would be
- * preferable for high-throughput environments.</p>
+ * <p><strong>Note:</strong> the frontend uses Google's implicit OAuth2 flow, so the bearer
+ * token is an opaque access token, not a JWT — it cannot be verified locally (e.g. via
+ * JWKS) and must be checked against Google. To avoid a network round-trip to Google on
+ * every single request, successful introspections are cached in-memory for a short TTL
+ * (capped by the token's own remaining lifetime), so repeated requests with the same
+ * token reuse the cached result instead of re-calling Google each time.</p>
  */
 @Component
 public class GoogleTokenAuthenticationFilter extends OncePerRequestFilter {
@@ -42,9 +46,21 @@ public class GoogleTokenAuthenticationFilter extends OncePerRequestFilter {
     /** Synchronous HTTP client used to call Google's token-introspection endpoint. */
     private final RestTemplate restTemplate = new RestTemplate();
 
+    /** Upper bound on how long a successful introspection result is cached for. */
+    private static final long MAX_CACHE_SECONDS = 300;
+
+    /** In-memory cache of previously-introspected tokens, keyed by the raw token string. */
+    private final Map<String, CachedIntrospection> introspectionCache = new ConcurrentHashMap<>();
+
+    private record CachedIntrospection(String userId, Instant expiresAt) {
+        boolean isExpired() {
+            return Instant.now().isAfter(expiresAt);
+        }
+    }
+
     /**
-     * Intercepts each request exactly once, validates the Bearer token against Google,
-     * and sets the authentication context if the token is valid.
+     * Intercepts each request exactly once, validates the Bearer token against Google
+     * (or a cached prior result), and sets the authentication context if the token is valid.
      *
      * @param request     the incoming HTTP request
      * @param response    the outgoing HTTP response
@@ -60,28 +76,59 @@ public class GoogleTokenAuthenticationFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
-            try {
-                // Introspect the token at Google's endpoint; the response body contains
-                // the user_id (Google sub claim) if the token is valid and not expired.
-                ResponseEntity<Map> resp = restTemplate.getForEntity(
-                    "https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=" + token, Map.class);
 
-                if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
-                    String userId = (String) resp.getBody().get("user_id");
-                    if (userId != null) {
-                        // Store the Google ID as the principal so controllers can retrieve it
-                        // with @AuthenticationPrincipal String googleId.
-                        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                            userId, token, List.of(new SimpleGrantedAuthority("ROLE_USER")));
-                        SecurityContextHolder.getContext().setAuthentication(auth);
-                    }
+            CachedIntrospection cached = introspectionCache.get(token);
+            if (cached != null && !cached.isExpired()) {
+                authenticate(cached.userId(), token);
+            } else {
+                if (cached != null) {
+                    introspectionCache.remove(token);
                 }
-            } catch (Exception ignored) {
-                // Any exception (network error, 4xx from Google) is silently swallowed;
-                // the security context remains unauthenticated and Spring Security will
-                // reject the request if the endpoint requires authentication.
+                introspectViaGoogle(token);
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Calls Google's token-introspection endpoint, caches a successful result, and
+     * authenticates the request. Any failure leaves the security context unauthenticated.
+     */
+    @SuppressWarnings("unchecked")
+    private void introspectViaGoogle(String token) {
+        try {
+            // Introspect the token at Google's endpoint; the response body contains
+            // the user_id (Google sub claim) and expires_in if the token is valid.
+            ResponseEntity<Map> resp = restTemplate.getForEntity(
+                "https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=" + token, Map.class);
+
+            if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
+                String userId = (String) resp.getBody().get("user_id");
+                if (userId != null) {
+                    long expiresInSeconds = MAX_CACHE_SECONDS;
+                    Object expiresIn = resp.getBody().get("expires_in");
+                    if (expiresIn instanceof Number number) {
+                        expiresInSeconds = Math.min(MAX_CACHE_SECONDS, number.longValue());
+                    }
+                    introspectionCache.put(token,
+                        new CachedIntrospection(userId, Instant.now().plusSeconds(Math.max(0, expiresInSeconds))));
+                    authenticate(userId, token);
+                }
+            }
+        } catch (Exception ignored) {
+            // Any exception (network error, 4xx from Google) is silently swallowed;
+            // the security context remains unauthenticated and Spring Security will
+            // reject the request if the endpoint requires authentication.
+        }
+    }
+
+    /**
+     * Stores the Google ID as the principal so controllers can retrieve it
+     * with {@code @AuthenticationPrincipal String googleId}.
+     */
+    private void authenticate(String userId, String token) {
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+            userId, token, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
     }
 }
