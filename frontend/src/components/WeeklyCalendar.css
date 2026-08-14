@@ -3,8 +3,23 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border);
-  overflow: hidden;
   min-width: 600px;
+}
+
+/* Note: no overflow:hidden here — it would become the nearest scroll container
+   for position:sticky descendants (.cal-header, .time-gutter, .time-col),
+   breaking their stickiness relative to the actual scrolling ancestor
+   (.calendar-area). Corners are left square instead of clipped; the
+   background colors involved are close enough that this is not noticeable. */
+
+@media (max-width: 768px) {
+  .weekly-calendar {
+    min-width: 760px;
+  }
+
+  .day-col {
+    scroll-snap-align: start;
+  }
 }
 
 /* Header */
@@ -21,6 +36,10 @@
   width: 56px;
   flex-shrink: 0;
   border-right: 1px solid var(--border);
+  position: sticky;
+  left: 0;
+  z-index: 6;
+  background: var(--bg);
 }
 
 .day-header {
@@ -59,7 +78,10 @@
   width: 56px;
   flex-shrink: 0;
   border-right: 1px solid var(--border);
-  position: relative;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: var(--surface);
 }
 
 .time-slot {

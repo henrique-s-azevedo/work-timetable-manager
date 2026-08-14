@@ -8,6 +8,7 @@
 
 /* Top bar */
 .topbar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -18,6 +19,24 @@
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
   gap: 12px;
+}
+
+/* Mobile / desktop visibility utilities */
+.mobile-only { display: none !important; }
+
+.mobile-topbar-title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--accent);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .topbar-left {
@@ -233,4 +252,119 @@
   height: 100%;
   color: var(--text-muted);
   font-size: 15px;
+}
+
+/* Collapsible metrics strip (mobile) */
+.metrics-strip {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.metrics-strip-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.metrics-strip-content {
+  display: flex;
+  gap: 8px;
+  padding: 0 12px 10px;
+  overflow-x: auto;
+}
+
+.metrics-chip {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.metrics-chip.active {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.metrics-chip-name {
+  font-weight: 600;
+}
+
+.metrics-chip-count {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.metrics-chip.active .metrics-chip-count {
+  color: var(--accent);
+}
+
+/* Bottom nav (mobile) */
+.app-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.06);
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+}
+
+.footer-profile-btn.profile-btn {
+  margin: 0;
+  border: none;
+  padding: 6px 8px;
+}
+
+.app-footer .footer-day-trigger {
+  border: none;
+  min-width: auto;
+  min-height: auto;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Mobile layout (≤768px): header + collapsible metrics strip + footer nav
+   replace the desktop topbar/sidebar. */
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+
+  .mobile-topbar-title.mobile-only { display: flex !important; }
+  .topbar-right .dropdown.mobile-only { display: inline-flex !important; }
+  .metrics-strip.mobile-only { display: block !important; }
+  .app-footer.mobile-only { display: flex !important; }
+
+  .topbar { padding: 0 10px; gap: 8px; }
+  .topbar-left { gap: 8px; flex: 0 1 auto; max-width: 40%; }
+  .week-input { width: 100px; padding: 5px 4px; font-size: 11px; }
+
+  .calendar-area {
+    padding: 12px 12px calc(72px + env(safe-area-inset-bottom));
+    scroll-snap-type: x proximity;
+  }
 }

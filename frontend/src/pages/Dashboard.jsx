@@ -34,6 +34,8 @@ import WeeklyCalendar from '../components/WeeklyCalendar'
 import EditSessionModal from '../components/EditSessionModal'
 import Toast from '../components/Toast'
 import ConfirmDialog from '../components/ConfirmDialog'
+import Dropdown from '../components/Dropdown'
+import { BurgerIcon, FilterIcon, ChevronIcon } from '../components/icons'
 import { exportToPDF } from '../utils/pdfExport'
 import './Dashboard.css'
 
@@ -104,6 +106,20 @@ function formatDuration(typeSessions) {
   return `${timeStr}(${n} bloco${n !== 1 ? 's' : ''})`
 }
 
+function ProfileButton({ user, onClick, className = '' }) {
+  return (
+    <button className={`profile-btn ${className}`} onClick={onClick} title="Perfil">
+      <div className="profile-avatar-sm">
+        {user?.profilePhotoUrl
+          ? <img src={user.profilePhotoUrl} alt="" />
+          : <span>{(user?.name || 'U')[0]}</span>
+        }
+      </div>
+      <span>{user?.name || 'Perfil'}</span>
+    </button>
+  )
+}
+
 export default function Dashboard() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -118,6 +134,7 @@ export default function Dashboard() {
   const [editSession, setEditSession] = useState(null)
   const [toast, setToast] = useState(null)
   const [clearConfirm, setClearConfirm] = useState(false)
+  const [metricsExpanded, setMetricsExpanded] = useState(false)
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -216,7 +233,7 @@ export default function Dashboard() {
       {/* Top bar */}
       <header className="topbar">
         <div className="topbar-left">
-          <span className="app-title">📅 Timetable</span>
+          <span className="app-title desktop-only">📅 Timetable</span>
           <div className="week-picker-wrap">
             <input
               type="week"
@@ -224,10 +241,10 @@ export default function Dashboard() {
               onChange={handleWeekChange}
               className="week-input"
             />
-            {weekLabel && <span className="week-label">{weekLabel}</span>}
+            {weekLabel && <span className="week-label desktop-only">{weekLabel}</span>}
           </div>
           <select
-            className="filter-select"
+            className="filter-select desktop-only"
             value={typeFilter}
             onChange={e => setTypeFilter(e.target.value)}
           >
@@ -237,15 +254,18 @@ export default function Dashboard() {
             ))}
           </select>
         </div>
+
+        <span className="mobile-topbar-title mobile-only">📅 Timetable</span>
+
         <div className="topbar-right">
           <button
-            className="btn btn-secondary"
+            className="btn btn-secondary desktop-only"
             onClick={() => navigate('/upload')}
           >
             ↑ Upload Ficheiro
           </button>
           <button
-            className="btn btn-primary"
+            className="btn btn-primary desktop-only"
             disabled={sessions.length === 0}
             onClick={handlePDFExport}
           >
@@ -253,18 +273,99 @@ export default function Dashboard() {
           </button>
           {hasExported && (
             <button
-              className="btn btn-danger"
+              className="btn btn-danger desktop-only"
               onClick={() => setClearConfirm(true)}
             >
               Limpar Semana
             </button>
           )}
+
+          <Dropdown
+            className="mobile-only"
+            triggerLabel="Filtrar por tipo"
+            trigger={<FilterIcon />}
+          >
+            {({ close }) => (
+              <>
+                <button
+                  className={`dropdown-item ${typeFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => { setTypeFilter('all'); close() }}
+                >
+                  Todos
+                </button>
+                {Object.entries(DISPLAY_NAMES).map(([type, name]) => (
+                  <button
+                    key={type}
+                    className={`dropdown-item ${typeFilter === type ? 'active' : ''}`}
+                    onClick={() => { setTypeFilter(type); close() }}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </>
+            )}
+          </Dropdown>
+
+          <Dropdown
+            className="mobile-only"
+            triggerLabel="Menu"
+            trigger={<BurgerIcon />}
+          >
+            {({ close }) => (
+              <>
+                <button className="dropdown-item" onClick={() => { close(); navigate('/upload') }}>
+                  ↑ Upload Ficheiro
+                </button>
+                <button
+                  className="dropdown-item"
+                  disabled={sessions.length === 0}
+                  onClick={() => { close(); handlePDFExport() }}
+                >
+                  ⬇ Exportar PDF
+                </button>
+                {hasExported && (
+                  <button
+                    className="dropdown-item danger"
+                    onClick={() => { close(); setClearConfirm(true) }}
+                  >
+                    🗑 Limpar Semana
+                  </button>
+                )}
+              </>
+            )}
+          </Dropdown>
         </div>
       </header>
 
+      {/* Collapsible metrics strip (mobile) */}
+      <div className="metrics-strip mobile-only">
+        <button
+          className="metrics-strip-toggle"
+          onClick={() => setMetricsExpanded(e => !e)}
+          aria-expanded={metricsExpanded}
+        >
+          <span>{metricsTitle}</span>
+          <ChevronIcon size={14} direction={metricsExpanded ? 'up' : 'down'} />
+        </button>
+        {metricsExpanded && (
+          <div className="metrics-strip-content">
+            {metrics.map(m => (
+              <button
+                key={m.type}
+                className={`metrics-chip ${typeFilter === m.type ? 'active' : ''}`}
+                onClick={() => setTypeFilter(prev => prev === m.type ? 'all' : m.type)}
+              >
+                <span className="metrics-chip-name">{m.name}</span>
+                {m.duration && <span className="metrics-chip-count">{m.duration}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="dashboard-body">
-        {/* Sidebar */}
-        <aside className="sidebar">
+        {/* Sidebar (desktop) */}
+        <aside className="sidebar desktop-only">
           <div className="metrics">
             <p className="metrics-title">{metricsTitle}</p>
             {metrics.map(m => (
@@ -293,19 +394,7 @@ export default function Dashboard() {
             </select>
           </div>
 
-          <button
-            className="profile-btn"
-            onClick={() => navigate('/profile')}
-            title="Perfil"
-          >
-            <div className="profile-avatar-sm">
-              {user?.profilePhotoUrl
-                ? <img src={user.profilePhotoUrl} alt="" />
-                : <span>{(user?.name || 'U')[0]}</span>
-              }
-            </div>
-            <span>{user?.name || 'Perfil'}</span>
-          </button>
+          <ProfileButton user={user} onClick={() => navigate('/profile')} />
         </aside>
 
         {/* Main calendar area */}
@@ -326,6 +415,43 @@ export default function Dashboard() {
           )}
         </main>
       </div>
+
+      {/* Bottom nav (mobile) */}
+      <footer className="app-footer mobile-only">
+        <ProfileButton user={user} onClick={() => navigate('/profile')} className="footer-profile-btn" />
+
+        <Dropdown
+          anchor="top"
+          triggerLabel="Filtrar por dia"
+          triggerClassName="footer-day-trigger"
+          trigger={
+            <>
+              <span>{dayFilter === 'all' ? 'Dia' : DAYS.find(d => d.value === dayFilter)?.label}</span>
+              <ChevronIcon size={14} direction="up" />
+            </>
+          }
+        >
+          {({ close }) => (
+            <>
+              <button
+                className={`dropdown-item ${dayFilter === 'all' ? 'active' : ''}`}
+                onClick={() => { setDayFilter('all'); close() }}
+              >
+                Todos
+              </button>
+              {DAYS.map(d => (
+                <button
+                  key={d.value}
+                  className={`dropdown-item ${dayFilter === d.value ? 'active' : ''}`}
+                  onClick={() => { setDayFilter(d.value); close() }}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </>
+          )}
+        </Dropdown>
+      </footer>
 
       {editSession && (
         <EditSessionModal
